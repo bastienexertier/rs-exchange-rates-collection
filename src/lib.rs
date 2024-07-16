@@ -1,55 +1,47 @@
 
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+#[derive(Debug, Default)]
 pub struct ExchangeRates<'a> {
-    rates: HashMap<(&'a str, &'a str), f64>
+    rates: HashMap<&'a str, HashMap<&'a str, f64>>
 }
 
 impl<'a> ExchangeRates<'a> {
 
-    pub fn new(rates: HashMap<(&'a str, &'a str), f64>) -> Self {
-        ExchangeRates { rates }
-    }
-
-    pub fn get_all(&self, currency: &str) -> HashMap<&str, f64> {
-        let mut res = HashMap::new();
-        for (&(curr1, curr2), v) in self.rates.iter() {
-            if curr1 == currency {
-                res.insert(curr2, 1.*v.to_owned());
-            }
-
-            if curr2 == currency {
-                res.insert(curr1, 1./v.to_owned());
-            }
+    pub fn from_rates(rates: HashMap<(&'a str, &'a str), f64>) -> Self {
+        let mut res = ExchangeRates { rates: HashMap::new() };
+        for ((curr1, curr2), rate) in rates {
+            res.add(curr1, curr2, rate);
         }
         res
+    }
+
+    pub fn add(&mut self, curr1: &'a str, curr2: &'a str, rate: f64) {
+        self.rates.entry(curr1).or_default().insert(curr2, 1.*rate);
+        self.rates.entry(curr2).or_default().insert(curr1, 1./rate);
     }
 
     pub fn get(&mut self, curr1: &str, curr2: &str) -> Option<f64> {
         if curr1 == curr2 {
             Some(1.)
-        }
-        else if let Some(rate) = self.rates.get(&(curr1, curr2)) {
+        } else if !self.rates.contains_key(curr1) {
+            None
+        } else if let Some(rate) = self.rates.get(curr1).and_then(|rates| rates.get(curr2)) {
             Some(1.*rate)
-        }
-        else if let Some(reversed_rate) = self.rates.get(&(curr2, curr1)) {
-            Some(1./reversed_rate)
-        }
-        else {
+        } else {
             let mut seen = HashSet::new();
             let mut vec = vec![(curr1, 1.)];
             let mut idx = 0;
             while idx < vec.len() {
                 let (curr, rate) = vec[idx];
-                for (n_curr, n_rate) in self.get_all(curr) {
-                    // self.rates.entry((curr1, n_curr)).or_insert(rate*n_rate):
-                    if n_curr == curr2 {
-                        return Some(rate * n_rate);
+                for (n_curr, n_rate) in self.rates.get(curr).unwrap() {
+                    let rate = rate * n_rate;
+                    if *n_curr == curr2 {
+                        return Some(rate);
                     }
                     if seen.insert(n_curr) {
-                        vec.push((n_curr, rate*n_rate));
+                        vec.push((n_curr, rate));
                     }
                 }
                 idx += 1;
@@ -66,7 +58,7 @@ mod tests {
 
     #[test]
     fn not_there() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::new()
         );
         assert_eq!(e.get("USD", "EUR"), None);
@@ -74,7 +66,7 @@ mod tests {
 
     #[test]
     fn identical() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::new()
         );
         assert_eq!(e.get("USD", "USD"), Some(1.));
@@ -82,7 +74,7 @@ mod tests {
 
     #[test]
     fn is_there() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "EUR"), 1.)
             ])
@@ -91,8 +83,18 @@ mod tests {
     }
 
     #[test]
+    fn is_not_the_one_there() {
+        let mut e = ExchangeRates::from_rates(
+            HashMap::from([
+                (("USD", "EUR"), 1.)
+            ])
+        );
+        assert_eq!(e.get("JPY", "DKK"), None);
+    }
+
+    #[test]
     fn reverse() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "EUR"), 2.)
             ])
@@ -102,7 +104,7 @@ mod tests {
 
     #[test]
     fn chain() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "JPY"), 2.),
                 (("JPY", "EUR"), 3.),
@@ -113,17 +115,17 @@ mod tests {
 
     #[test]
     fn longer_chain() {
-        let mut e = ExchangeRates::new(
+        let mut e = ExchangeRates::from_rates(
             HashMap::from([
                 (("START", "M1"), 2.),
                 (("M1", "M2"), 2.),
                 (("M2", "M3"), 2.),
-                (("M3", "M4"), 2.),
+                (("M3", "M4"), 5.),
                 (("M4", "M5"), 2.),
                 (("M5", "M6"), 2.),
                 (("M6", "END"), 2.),
             ])
         );
-        assert_eq!(e.get("USD", "EUR"), Some(128.));
+        assert_eq!(e.get("START", "END"), Some(5.*64.));
     }
 }
