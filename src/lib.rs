@@ -22,7 +22,7 @@ impl<'a> ExchangeRates<'a> {
         self.rates.entry(curr2).or_default().insert(curr1, 1./rate);
     }
 
-    pub fn get(&mut self, curr1: &str, curr2: &str) -> Option<f64> {
+    pub fn get(self, curr1: &str, curr2: &str) -> Option<f64> {
         if curr1 == curr2 {
             Some(1.)
         } else if !self.rates.contains_key(curr1) {
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn not_there() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::new()
         );
         assert_eq!(e.get("USD", "EUR"), None);
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn identical() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::new()
         );
         assert_eq!(e.get("USD", "USD"), Some(1.));
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn is_there() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "EUR"), 1.)
             ])
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn is_not_the_one_there() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "EUR"), 1.)
             ])
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn reverse() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "EUR"), 2.)
             ])
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn chain() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::from([
                 (("USD", "JPY"), 2.),
                 (("JPY", "EUR"), 3.),
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn longer_chain() {
-        let mut e = ExchangeRates::from_rates(
+        let e = ExchangeRates::from_rates(
             HashMap::from([
                 (("START", "M1"), 2.),
                 (("M1", "M2"), 2.),
